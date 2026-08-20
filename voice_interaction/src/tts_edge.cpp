@@ -18,6 +18,7 @@ TTSEdge::~TTSEdge() {
 }
 
 void TTSEdge::kill_ffplay() {
+    std::lock_guard<std::mutex> lock(process_mutex_);
     int pid = ffplay_pid_.exchange(0);
     if (pid > 0) {
         kill(pid, SIGTERM);
@@ -114,6 +115,7 @@ bool TTSEdge::synthesize(const std::string& text, const std::string& mp3_path) {
 }
 
 void TTSEdge::wait_done() {
+    std::lock_guard<std::mutex> lock(process_mutex_);
     int pid = ffplay_pid_.exchange(0);
     if (pid > 0) {
         int status;
@@ -123,6 +125,7 @@ void TTSEdge::wait_done() {
 }
 
 bool TTSEdge::is_playing() {
+    std::lock_guard<std::mutex> lock(process_mutex_);
     int pid = ffplay_pid_.load();
     if (pid <= 0) return false;
     int status = 0;

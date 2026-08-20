@@ -2,6 +2,7 @@
 #include <string>
 #include <atomic>
 #include <csignal>
+#include <mutex>
 
 class TTSEdge {
 public:
@@ -47,6 +48,7 @@ private:
     std::string tmp_txt_;
     std::atomic<int> ffplay_pid_{0};
     std::atomic<bool> playing_{false};
+    mutable std::mutex process_mutex_;
 
     /** 杀掉 ffplay 子进程 */
     void kill_ffplay();

@@ -10,19 +10,27 @@ voice_interaction_node:
     # $(env HOME) is expanded by ParameterFile in the launch file.
     asr_model_dir: "$(env HOME)/ReSpearMicArray/models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20"
     silence_sec: 1.0
-    preroll_ms: 500
-    wait_user_timeout_sec: 8.0
+    preroll_ms: 1000
+    wake_preroll_ms: 2000
+    wait_user_timeout_sec: 20.0
     max_utterance_sec: 15.0
 
     use_wake_word: true
-    wake_word: "你好"
+    wake_word: "小萝卜头"
+    # 允许 ASR 的常见同音/繁体输出；仍要求完整四字短语，不匹配半个词。
+    wake_word_aliases: ["小萝卜头", "小罗卜头", "小萝卜頭", "小罗布头"]
+
     conversation_timeout_sec: 20.0
+
     enable_barge_in: true
+
     barge_in_hold_ms: 300
+
     barge_in_guard_ms: 500
+
     tts_cooldown_ms: 500
 
-    system_prompt: "你好你是一个语音助手。和你对话的是一个小朋友。请用简短的中文回答他的问题。不超过100字。"
+    system_prompt: "你好你是一个语音助手小萝卜头。和你对话的是一个小朋友。"
     max_history: 6
     http_proxy: ""
 

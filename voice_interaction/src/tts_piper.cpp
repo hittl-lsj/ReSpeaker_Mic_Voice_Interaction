@@ -18,6 +18,7 @@ TTSPiper::~TTSPiper() {
 }
 
 void TTSPiper::kill_ffplay() {
+    std::lock_guard<std::mutex> lock(process_mutex_);
     int pid = ffplay_pid_.exchange(0);
     if (pid > 0) {
         kill(pid, SIGTERM);
@@ -112,6 +113,7 @@ bool TTSPiper::synthesize(const std::string& text, const std::string& wav_path) 
 }
 
 void TTSPiper::wait_done() {
+    std::lock_guard<std::mutex> lock(process_mutex_);
     int pid = ffplay_pid_.exchange(0);
     if (pid > 0) {
         int status;
@@ -121,6 +123,7 @@ void TTSPiper::wait_done() {
 }
 
 bool TTSPiper::is_playing() {
+    std::lock_guard<std::mutex> lock(process_mutex_);
     int pid = ffplay_pid_.load();
     if (pid <= 0) return false;
     int status = 0;

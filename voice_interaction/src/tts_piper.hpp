@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <atomic>
+#include <mutex>
 
 /**
  * @brief 离线 TTS：piper（纯 CPU、毫秒级合成）
@@ -32,6 +33,7 @@ private:
     std::string tmp_wav_;
     std::atomic<int> ffplay_pid_{0};
     std::atomic<bool> playing_{false};
+    mutable std::mutex process_mutex_;
 
     void kill_ffplay();
 };

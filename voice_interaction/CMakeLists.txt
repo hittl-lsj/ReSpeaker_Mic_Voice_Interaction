@@ -30,6 +30,10 @@ add_executable(interaction_node
   src/asr_sherpa.cpp
   src/tts_edge.cpp
   src/tts_piper.cpp
+  src/speech_recorder.cpp
+  src/playback_manager.cpp
+  src/response_streamer.cpp
+  src/session_state_machine.cpp
 )
 
 target_include_directories(interaction_node PRIVATE

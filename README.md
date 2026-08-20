@@ -109,11 +109,15 @@ export VOICE_GATEWAY_API_KEY='your-api-key'
 ros2 launch voice_interaction voice_assistant.launch.py
 ```
 
-默认唤醒词为“你好”。唤醒后进入连续对话模式，20 秒无有效识别会重新进入待唤醒状态。
+唤醒词由 `wake_word` 配置，`wake_word_aliases` 可填写 ASR 常见的同音或繁体输出。
+当前示例使用“小萝卜头”，但仍要求识别到完整四字短语，不会因为只识别到“小萝卜”就提前触发。
+唤醒词命中后不会立即播放提示音，而是继续录完整句，因此支持“小萝卜头，打开客厅灯”这类唤醒词和命令同句的说法。
+唤醒后进入连续对话模式，20 秒无有效识别会重新进入待唤醒状态。
 
 会话边界和插话参数位于统一 YAML：
 
 - `wait_user_timeout_sec`: 唤醒后等待用户开口的最长时间
+- `wake_preroll_ms`: 唤醒触发时保留唤醒词及其后紧邻命令的预录时长
 - `max_utterance_sec`: 单句最长录音时间
 - `tts_cooldown_ms`: TTS 播放结束后的 VAD/唤醒冷却时间
 - `enable_barge_in`: 是否允许用户在机器人播报或思考时插话
