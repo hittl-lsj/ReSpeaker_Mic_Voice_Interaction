@@ -1,0 +1,53 @@
+#pragma once
+#include <string>
+#include <atomic>
+#include <csignal>
+
+class TTSEdge {
+public:
+    /**
+     * @param voice  TTS 发音人
+     * @param audio_dev 音频输出设备，如 "plughw:2,0"（ReSpeaker 耳机孔）
+     */
+    TTSEdge(const std::string& voice = "zh-CN-XiaoxiaoNeural",
+            const std::string& audio_dev = "");  // 空 = 系统默认
+    ~TTSEdge();
+
+    /** 整段合成+播放（阻塞） */
+    bool speak(const std::string& text);
+
+    /**
+     * @brief 播放一句（不阻塞）。
+     * 调用后立即返回，ffplay 在后台播放。
+     * 配合 stream_speak() 使用可实现流式 TTS。
+     */
+    bool speak_async(const std::string& text);
+
+    // 仅合成到指定 mp3（不播放），用于流水线（合成与播放并行）
+    bool synthesize(const std::string& text, const std::string& mp3_path);
+
+    /**
+     * @brief 等待当前正在播放的音频结束。
+     * 如果没在播放则立即返回。返回后可以安全地播下一句。
+     */
+    void wait_done();
+
+    /** 立刻停止播放 */
+    void stop();
+
+    /** 是否正在播放 */
+    bool is_playing() const { return playing_; }
+
+    void set_voice(const std::string& voice) { voice_ = voice; }
+
+private:
+    std::string voice_;
+    std::string audio_dev_;   // 输出设备，空=系统默认
+    std::string tmp_mp3_;
+    std::string tmp_txt_;
+    int         ffplay_pid_ = 0;
+    std::atomic<bool> playing_{false};
+
+    /** 杀掉 ffplay 子进程 */
+    void kill_ffplay();
+};

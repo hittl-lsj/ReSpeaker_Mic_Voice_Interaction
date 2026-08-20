@@ -1,0 +1,27 @@
+# ROS 2 / colcon outputs
+build/
+install/
+log/
+
+# Local IDE and Python artifacts
+.vscode/
+.idea/
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# Runtime temporary files
+*.wav
+*.mp3
+
+# Local ASR/TTS models and prebuilt runtime libraries
+models/
+vosk-model-*/
+vosk-linux-*/
+*.onnx
+*.onnx.json
+*.so
+
+# Upstream firmware/tool checkout kept locally for device maintenance
+usb_4_mic_array/

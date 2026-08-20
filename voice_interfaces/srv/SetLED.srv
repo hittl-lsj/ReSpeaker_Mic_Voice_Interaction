@@ -1,0 +1,4 @@
+# 设置 LED 状态
+uint8 state    # 0=IDLE 1=WAKING 2=LISTENING 3=THINKING 4=SPEAKING 5=ERROR
+---
+bool success   # 是否成功
