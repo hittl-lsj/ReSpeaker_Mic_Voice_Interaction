@@ -1,0 +1,40 @@
+respeaker_node:
+  ros__parameters:
+    # true: XVF-3000 hardware VAD; false: adaptive software VAD
+    use_hardware_vad: true
+    snr_threshold: 3.0
+    hold_off_ms: 200
+
+voice_interaction_node:
+  ros__parameters:
+    # $(env HOME) is expanded by ParameterFile in the launch file.
+    asr_model_dir: "$(env HOME)/ReSpearMicArray/models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20"
+    silence_sec: 1.0
+    preroll_ms: 500
+    wait_user_timeout_sec: 8.0
+    max_utterance_sec: 15.0
+
+    use_wake_word: true
+    wake_word: "你好"
+    conversation_timeout_sec: 20.0
+    enable_barge_in: true
+    barge_in_hold_ms: 300
+    barge_in_guard_ms: 500
+    tts_cooldown_ms: 500
+
+    system_prompt: "你好你是一个语音助手。和你对话的是一个小朋友。请用简短的中文回答他的问题。不超过100字。"
+    max_history: 6
+    http_proxy: ""
+
+    # Optional OpenAI-compatible gateway. The API key is read from
+    # VOICE_GATEWAY_API_KEY and is never stored in this file.
+    gateway_base_url: ""
+    gateway_model: ""
+
+    use_ollama: true
+    ollama_url: "http://localhost:11434/v1"
+    ollama_model: "qwen2.5:1.5b"
+
+    tts_voice: "zh-CN-XiaoxiaoNeural"
+    tts_device: "plughw:3,0"
+    piper_model: "$(env HOME)/ReSpearMicArray/zh_CN-huayan-medium.onnx"

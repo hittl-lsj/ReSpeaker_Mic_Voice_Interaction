@@ -11,6 +11,7 @@
 #include <deque>
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 
 class ReSpeakerNode : public rclcpp::Node {
 public:
@@ -39,7 +40,12 @@ public:
         }
 
         // ----- 音频采集 -----
-        audio_.start();
+        if (!audio_.start()) {
+            usb_running_ = false;
+            if (usb_thread_.joinable()) usb_thread_.join();
+            usb_.close();
+            throw std::runtime_error("无法启动 ReSpeaker ALSA 音频采集");
+        }
         RCLCPP_INFO(get_logger(), "音频采集已启动 (16000 Hz)");
         audio_running_ = true;
         audio_thread_  = std::thread(&ReSpeakerNode::audio_loop, this);
@@ -76,10 +82,20 @@ private:
     std::atomic<int>  hw_vad_{0};       // 硬件 VAD 最新值
 
     void usb_loop() {
+        int consecutive_failures = 0;
         while (usb_running_ && rclcpp::ok()) {
             // 读硬件 VAD
             int v = usb_.read_vad();
-            hw_vad_ = (v == 1) ? 1 : 0;
+            if (v == 0 || v == 1) {
+                hw_vad_ = v;
+                consecutive_failures = 0;
+                usb_ok_ = true;
+            } else if (++consecutive_failures >= 3) {
+                if (usb_ok_.exchange(false)) {
+                    RCLCPP_WARN(get_logger(),
+                                "USB VAD 连续读取失败，切换到软件 VAD");
+                }
+            }
 
             // 读 DoA 角度并发布
             int a = usb_.read_doa();
@@ -198,7 +214,13 @@ private:
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<ReSpeakerNode>());
+    try {
+        rclcpp::spin(std::make_shared<ReSpeakerNode>());
+    } catch (const std::exception& e) {
+        RCLCPP_FATAL(rclcpp::get_logger("respeaker_node"), "%s", e.what());
+        rclcpp::shutdown();
+        return 1;
+    }
     rclcpp::shutdown();
     return 0;
 }

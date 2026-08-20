@@ -52,5 +52,10 @@ ament_target_dependencies(interaction_node
 )
 
 install(TARGETS interaction_node DESTINATION lib/${PROJECT_NAME})
+install(DIRECTORY launch config
+  DESTINATION share/${PROJECT_NAME}
+  PATTERN "__pycache__" EXCLUDE
+  PATTERN "*.pyc" EXCLUDE
+)
 
 ament_package()

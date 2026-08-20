@@ -18,10 +18,10 @@ TTSPiper::~TTSPiper() {
 }
 
 void TTSPiper::kill_ffplay() {
-    if (ffplay_pid_ > 0) {
-        kill(ffplay_pid_, SIGTERM);
-        waitpid(ffplay_pid_, nullptr, WNOHANG);
-        ffplay_pid_ = 0;
+    int pid = ffplay_pid_.exchange(0);
+    if (pid > 0) {
+        kill(pid, SIGTERM);
+        waitpid(pid, nullptr, 0);
     }
 }
 
@@ -46,17 +46,18 @@ bool TTSPiper::speak(const std::string& text) {
         return false;
     }
 
-    // 播放
-    // channelmap=0-0|0-1：将输入声道0复制到两个输出声道
-    // ReSpeaker 4 Mic Array 耳机孔硬件只有左声道，此滤镜确保内容不丢失
-    std::string play;
-    if (!audio_dev_.empty())
-        play = "AUDIODEV=" + audio_dev_ + " ffplay -nodisp -autoexit -loglevel quiet"
-               " -af \"channelmap=0-0|0-1\" " + tmp_wav_;
-    else
-        play = "ffplay -nodisp -autoexit -loglevel quiet"
-               " -af \"channelmap=0-0|0-1\" " + tmp_wav_;
-    system(play.c_str());
+    pid_t pid = fork();
+    if (pid < 0) return false;
+    if (pid == 0) {
+        if (!audio_dev_.empty()) setenv("AUDIODEV", audio_dev_.c_str(), 1);
+        execlp("ffplay", "ffplay", "-nodisp", "-autoexit",
+               "-loglevel", "quiet", "-af", "channelmap=0-0|0-1",
+               tmp_wav_.c_str(), nullptr);
+        _exit(1);
+    }
+    ffplay_pid_.store(pid);
+    playing_ = true;
+    wait_done();
     return true;
 }
 
@@ -77,6 +78,7 @@ bool TTSPiper::speak_async(const std::string& text) {
     }
 
     pid_t pid = fork();
+    if (pid < 0) return false;
     if (pid == 0) {
         if (!audio_dev_.empty())
             setenv("AUDIODEV", audio_dev_.c_str(), 1);
@@ -86,7 +88,7 @@ bool TTSPiper::speak_async(const std::string& text) {
                tmp_wav_.c_str(), nullptr);
         _exit(1);
     }
-    ffplay_pid_ = pid;
+    ffplay_pid_.store(pid);
     playing_ = true;
     return true;
 }
@@ -110,10 +112,24 @@ bool TTSPiper::synthesize(const std::string& text, const std::string& wav_path) 
 }
 
 void TTSPiper::wait_done() {
-    if (ffplay_pid_ > 0) {
+    int pid = ffplay_pid_.exchange(0);
+    if (pid > 0) {
         int status;
-        waitpid(ffplay_pid_, &status, 0);
-        ffplay_pid_ = 0;
+        waitpid(pid, &status, 0);
     }
     playing_ = false;
+}
+
+bool TTSPiper::is_playing() {
+    int pid = ffplay_pid_.load();
+    if (pid <= 0) return false;
+    int status = 0;
+    pid_t result = waitpid(pid, &status, WNOHANG);
+    if (result != 0) {
+        int expected = pid;
+        ffplay_pid_.compare_exchange_strong(expected, 0);
+        playing_ = false;
+        return false;
+    }
+    return result == 0;
 }

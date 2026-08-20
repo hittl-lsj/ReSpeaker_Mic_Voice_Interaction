@@ -166,6 +166,7 @@ bool LLMClient::chat_stream(const std::vector<ChatMessage>& messages,
                              std::function<void(const std::string&)> on_token,
                              std::string& used_name) {
     for (auto& p : providers_) {
+        if (cancel_requested_.load()) return false;
         if (!should_try(p)) {
             std::cerr << "[LLM stream] " << p.name << " 已冷却，跳过" << std::endl;
             continue;
@@ -191,6 +192,7 @@ bool LLMClient::chat_stream(const std::vector<ChatMessage>& messages,
         bool got_any = false;
         http_.post_stream(url, body,
             [&](const std::string& line) {
+                if (cancel_requested_.load()) return;
                 if (line.empty()) return;
                 if (line == "data: [DONE]") return;
                 std::string token;
@@ -201,7 +203,9 @@ bool LLMClient::chat_stream(const std::vector<ChatMessage>& messages,
                     token = parse_openai(line.substr(6));
                 }
                 if (!token.empty()) { got_any = true; on_token(token); }
-            }, headers);
+            }, headers, [this]() { return cancel_requested_.load(); });
+
+        if (cancel_requested_.load()) return false;
 
         if (got_any) {
             mark_success(p);

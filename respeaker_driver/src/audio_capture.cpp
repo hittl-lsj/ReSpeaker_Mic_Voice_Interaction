@@ -70,14 +70,37 @@ bool AudioCapture::start() {
     // 交错模式、16bit LE、16000Hz、单声道
     snd_pcm_hw_params_set_access(pcm, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED);
     snd_pcm_hw_params_set_format(pcm, hw_params, SND_PCM_FORMAT_S16_LE);
-    snd_pcm_hw_params_set_rate(pcm, hw_params, sample_rate_, 0);
-    snd_pcm_hw_params_set_channels(pcm, hw_params, input_ch_);
+    err = snd_pcm_hw_params_set_rate(pcm, hw_params, sample_rate_, 0);
+    if (err < 0) {
+        std::cerr << "[AudioCapture] 不支持采样率 " << sample_rate_ << ": "
+                  << snd_strerror(err) << std::endl;
+        snd_pcm_close(pcm);
+        stream_ = nullptr;
+        return false;
+    }
+    err = snd_pcm_hw_params_set_channels(pcm, hw_params, input_ch_);
+    if (err < 0) {
+        std::cerr << "[AudioCapture] 不支持声道数 " << input_ch_ << ": "
+                  << snd_strerror(err) << std::endl;
+        snd_pcm_close(pcm);
+        stream_ = nullptr;
+        return false;
+    }
 
     // 设置 buffer 大小
     snd_pcm_uframes_t buffer_size = frames_per_buffer_ * 4;
     snd_pcm_hw_params_set_buffer_size_near(pcm, hw_params, &buffer_size);
-    snd_pcm_hw_params_set_period_size_near(pcm, hw_params,
-        (snd_pcm_uframes_t*)&frames_per_buffer_, nullptr);
+    snd_pcm_uframes_t period_size = static_cast<snd_pcm_uframes_t>(frames_per_buffer_);
+    err = snd_pcm_hw_params_set_period_size_near(pcm, hw_params,
+                                                  &period_size, nullptr);
+    if (err < 0) {
+        std::cerr << "[AudioCapture] period size 设置失败: "
+                  << snd_strerror(err) << std::endl;
+        snd_pcm_close(pcm);
+        stream_ = nullptr;
+        return false;
+    }
+    frames_per_buffer_ = static_cast<int>(period_size);
 
     err = snd_pcm_hw_params(pcm, hw_params);
     if (err < 0) {

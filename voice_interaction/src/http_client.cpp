@@ -20,12 +20,14 @@ static size_t write_cb(void* ptr, size_t size, size_t nmemb, void* userdata) {
 // libcurl 流式写回调
 struct StreamContext {
     std::function<void(const std::string&)> on_chunk;
+    std::function<bool()> should_cancel;
     std::string leftover;  // 上次没消费完的半行
 };
 
 static size_t stream_cb(void* ptr, size_t size, size_t nmemb, void* userdata) {
     size_t total = size * nmemb;
     auto* ctx = static_cast<StreamContext*>(userdata);
+    if (ctx->should_cancel && ctx->should_cancel()) return 0;
     std::string chunk(static_cast<char*>(ptr), total);
 
     // 按行拆分，保证不会把一条完整消息切成两段
@@ -40,6 +42,12 @@ static size_t stream_cb(void* ptr, size_t size, size_t nmemb, void* userdata) {
             ctx->on_chunk(line);
     }
     return total;
+}
+
+static int progress_cb(void* userdata, curl_off_t, curl_off_t,
+                       curl_off_t, curl_off_t) {
+    auto* ctx = static_cast<StreamContext*>(userdata);
+    return (ctx->should_cancel && ctx->should_cancel()) ? 1 : 0;
 }
 
 // ====== HttpClient ======
@@ -75,7 +83,8 @@ std::string HttpClient::post(const std::string& url,
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ctx);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 3000L);  // 连接超时 3s，离线快速失败
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeout_ms_);
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
     // 代理可配：空 = 直连
     if (!proxy_.empty())
         curl_easy_setopt(curl, CURLOPT_PROXY, proxy_.c_str());
@@ -93,11 +102,12 @@ std::string HttpClient::post(const std::string& url,
 void HttpClient::post_stream(const std::string& url,
                               const std::string& json_body,
                               std::function<void(const std::string&)> on_chunk,
-                              const std::map<std::string, std::string>& headers) {
+                              const std::map<std::string, std::string>& headers,
+                              std::function<bool()> should_cancel) {
     CURL* curl = curl_easy_init();
     if (!curl) return;
 
-    StreamContext ctx{on_chunk, ""};
+    StreamContext ctx{on_chunk, should_cancel, ""};
     struct curl_slist* hlist = nullptr;
 
     for (auto& [k, v] : headers) {
@@ -112,18 +122,24 @@ void HttpClient::post_stream(const std::string& url,
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ctx);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 3000L);  // 连接超时 3s
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeout_ms_);
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_cb);
+    curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &ctx);
     // 代理可配：空 = 直连
     if (!proxy_.empty())
         curl_easy_setopt(curl, CURLOPT_PROXY, proxy_.c_str());
 
     CURLcode res = curl_easy_perform(curl);
-    if (res != CURLE_OK) {
+    if (res != CURLE_OK && res != CURLE_ABORTED_BY_CALLBACK &&
+        !(ctx.should_cancel && ctx.should_cancel())) {
         std::cerr << "[HttpClient stream] " << curl_easy_strerror(res) << std::endl;
     }
 
     // 发剩余数据
-    if (!ctx.leftover.empty()) on_chunk(ctx.leftover);
+    if (!ctx.leftover.empty() &&
+        !(ctx.should_cancel && ctx.should_cancel())) on_chunk(ctx.leftover);
 
     curl_slist_free_all(hlist);
     curl_easy_cleanup(curl);
@@ -152,7 +168,8 @@ std::string HttpClient::post_file(const std::string& url,
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ctx);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeout_ms_);
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
 
     curl_easy_perform(curl);
 

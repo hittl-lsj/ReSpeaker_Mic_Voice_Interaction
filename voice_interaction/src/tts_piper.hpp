@@ -23,13 +23,14 @@ public:
     bool synthesize(const std::string& text, const std::string& wav_path);
     void wait_done();
     void stop();
+    bool is_playing();
 
 private:
     std::string model_path_;
     std::string audio_dev_;
     std::string tmp_txt_;
     std::string tmp_wav_;
-    int         ffplay_pid_ = 0;
+    std::atomic<int> ffplay_pid_{0};
     std::atomic<bool> playing_{false};
 
     void kill_ffplay();

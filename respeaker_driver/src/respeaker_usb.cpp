@@ -1,5 +1,6 @@
 #include "respeaker_usb.hpp"
 #include <iostream>
+#include <cstring>
 
 ReSpeakerUSB::ReSpeakerUSB() : handle_(nullptr) {}
 
@@ -49,7 +50,9 @@ int ReSpeakerUSB::read_doa() {
     // Python: bRequest=0, wValue=0xC0, wIndex=21
     int n = ctrl_in(DOA_WVALUE, PARAM_DOA_ID, data, 8);
     if (n != 8) return -1;
-    return *(int*)data;
+    int value = -1;
+    std::memcpy(&value, data, sizeof(value));
+    return value;
 }
 
 int ReSpeakerUSB::read_vad() {
@@ -57,7 +60,9 @@ int ReSpeakerUSB::read_vad() {
     // Python: bRequest=0, wValue=0xE0, wIndex=19
     int n = ctrl_in(VAD_WVALUE, PARAM_VAD_ID, data, 8);
     if (n != 8) return -1;
-    return *(int*)data;
+    int value = -1;
+    std::memcpy(&value, data, sizeof(value));
+    return value;
 }
 
 // ========== LED ==========
@@ -106,12 +111,12 @@ int ReSpeakerUSB::ctrl_in(uint16_t wValue, uint16_t wIndex, uint8_t* data, int l
         0,         // bRequest = 0（与 Python 一致）
         wValue,    // 命令字节
         wIndex,    // 参数 ID
-        data, length, USB_TIMEOUT);
+        data, length, USB_TIMEOUT_MS);
 }
 
 void ReSpeakerUSB::led_send(uint8_t cmd, uint8_t* data, int len) {
     if (!handle_) return;
     libusb_control_transfer(handle_,
         LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE | LIBUSB_ENDPOINT_OUT,
-        0, cmd, LED_WVALUE, data, len, USB_TIMEOUT);
+        0, cmd, LED_WVALUE, data, len, USB_TIMEOUT_MS);
 }

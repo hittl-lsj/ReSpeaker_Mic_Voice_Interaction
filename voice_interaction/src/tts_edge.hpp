@@ -36,7 +36,7 @@ public:
     void stop();
 
     /** 是否正在播放 */
-    bool is_playing() const { return playing_; }
+    bool is_playing();
 
     void set_voice(const std::string& voice) { voice_ = voice; }
 
@@ -45,7 +45,7 @@ private:
     std::string audio_dev_;   // 输出设备，空=系统默认
     std::string tmp_mp3_;
     std::string tmp_txt_;
-    int         ffplay_pid_ = 0;
+    std::atomic<int> ffplay_pid_{0};
     std::atomic<bool> playing_{false};
 
     /** 杀掉 ffplay 子进程 */

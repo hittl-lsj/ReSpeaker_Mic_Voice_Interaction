@@ -30,7 +30,7 @@ extern "C" {
 #define LED_CMD_BREATHE       0x0A   // 呼吸灯
 #define LED_WVALUE            0x1C   // LED 通信的固定 wValue
 
-#define USB_TIMEOUT 100000  // USB 超时（微秒）
+#define USB_TIMEOUT_MS 200  // libusb 超时单位为毫秒
 
 
 /**
