@@ -46,10 +46,33 @@ public:
 
         config.recorder.use_wake_word =
             declare_parameter("use_wake_word", true);
+        config.recorder.wake_detector =
+            declare_parameter("wake_detector", "kws");
         config.recorder.wake_word = declare_parameter("wake_word", "你好");
         config.recorder.wake_word_aliases =
             declare_parameter<std::vector<std::string>>(
                 "wake_word_aliases", std::vector<std::string>{});
+        config.recorder.kws_model_dir = declare_parameter(
+            "kws_model_dir",
+            home + "/ReSpearMicArray/models/"
+                  "sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01-mobile");
+        config.recorder.kws_encoder = declare_parameter("kws_encoder", "");
+        config.recorder.kws_decoder = declare_parameter("kws_decoder", "");
+        config.recorder.kws_joiner = declare_parameter("kws_joiner", "");
+        config.recorder.kws_tokens = declare_parameter("kws_tokens", "");
+        config.recorder.kws_keywords_file = declare_parameter(
+            "kws_keywords_file",
+            home + "/ReSpearMicArray/voice_interaction/config/wake_words.txt");
+        config.recorder.kws_num_threads =
+            declare_parameter("kws_num_threads", 1);
+        config.recorder.kws_max_active_paths =
+            declare_parameter("kws_max_active_paths", 4);
+        config.recorder.kws_num_trailing_blanks =
+            declare_parameter("kws_num_trailing_blanks", 1);
+        config.recorder.kws_keywords_score =
+            declare_parameter("kws_keywords_score", 3.0);
+        config.recorder.kws_keywords_threshold =
+            declare_parameter("kws_keywords_threshold", 0.1);
         config.conversation_timeout_sec =
             declare_parameter("conversation_timeout_sec", 20.0);
 

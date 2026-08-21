@@ -8,7 +8,17 @@
 #include <mutex>
 
 SpeechRecorder::SpeechRecorder(const rclcpp::Logger& logger, const Config& config)
-    : logger_(logger), config_(config), wake_word_(config.wake_word) {
+    : logger_(logger),
+      config_(config),
+      wake_detector_(config.wake_detector),
+      wake_word_(config.wake_word) {
+    if (wake_detector_ != "kws" && wake_detector_ != "asr" &&
+        wake_detector_ != "off") {
+        RCLCPP_WARN(logger_, "未知 wake_detector=%s，使用 kws",
+                    wake_detector_.c_str());
+        wake_detector_ = "kws";
+    }
+
     config_.preroll_ms = std::max(0, config_.preroll_ms);
     config_.wake_preroll_ms =
         std::max(config_.preroll_ms, config_.wake_preroll_ms);
@@ -31,17 +41,41 @@ SpeechRecorder::SpeechRecorder(const rclcpp::Logger& logger, const Config& confi
         wake_word_aliases_.insert(wake_word_aliases_.begin(), wake_word_);
     }
 
-    use_wake_word_ = config_.use_wake_word;
-    if (use_wake_word_) {
+    use_wake_word_ = config_.use_wake_word &&
+                     wake_detector_ != "off";
+    if (use_wake_word_ && wake_detector_ == "kws") {
+        KeywordSpotter::Config kws_config;
+        kws_config.model_dir = config_.kws_model_dir;
+        kws_config.encoder = config_.kws_encoder;
+        kws_config.decoder = config_.kws_decoder;
+        kws_config.joiner = config_.kws_joiner;
+        kws_config.tokens = config_.kws_tokens;
+        kws_config.keywords_file = config_.kws_keywords_file;
+        kws_config.keywords = wake_word_aliases_;
+        kws_config.num_threads = config_.kws_num_threads;
+        kws_config.max_active_paths = config_.kws_max_active_paths;
+        kws_config.num_trailing_blanks = config_.kws_num_trailing_blanks;
+        kws_config.keywords_score = config_.kws_keywords_score;
+        kws_config.keywords_threshold = config_.kws_keywords_threshold;
+        kws_ = std::make_unique<KeywordSpotter>(logger_, kws_config);
+        if (!kws_->is_ready()) {
+            kws_.reset();
+            RCLCPP_WARN(logger_, "KWS 不可用，回退到 ASR 唤醒");
+            wake_detector_ = "asr";
+        }
+    }
+
+    if (use_wake_word_ && wake_detector_ == "asr") {
         wake_asr_ = std::make_unique<ASRSherpa>(config_.asr_model_dir);
         if (!wake_asr_->is_ready()) {
             RCLCPP_WARN(logger_, "唤醒词识别器加载失败，回退到 VAD 触发");
             wake_asr_.reset();
             use_wake_word_ = false;
         } else {
-            RCLCPP_INFO(logger_, "唤醒词已启用: %s", wake_word_.c_str());
+            RCLCPP_INFO(logger_, "ASR 唤醒已启用: %s", wake_word_.c_str());
         }
     }
+
 }
 
 bool SpeechRecorder::is_ready() const {
@@ -66,19 +100,26 @@ void SpeechRecorder::on_audio(const std::vector<int16_t>& samples,
             audio_buffer_.insert(audio_buffer_.end(), samples.begin(), samples.end());
     }
 
-    if (feed_wake_word && use_wake_word_ && wake_asr_)
+    if (!feed_wake_word || !use_wake_word_) return;
+    if (kws_) {
+        kws_->feed(samples);
+    } else if (wake_asr_) {
         wake_asr_->feed(samples);
+    }
 }
 
 std::string SpeechRecorder::poll_wake_word() {
-    if (!use_wake_word_ || !wake_asr_) return "";
+    if (!use_wake_word_) return "";
+    if (kws_) return kws_->poll();
+    if (!wake_asr_) return "";
+
     const std::string partial = wake_asr_->partial_result();
-    if (!partial.empty() && wake_word_matches(partial))
-        return partial;
+    if (!partial.empty() && wake_word_matches(partial)) return partial;
     return "";
 }
 
 void SpeechRecorder::reset_wake_detector() {
+    if (kws_) kws_->reset();
     if (wake_asr_) wake_asr_->reset();
 }
 

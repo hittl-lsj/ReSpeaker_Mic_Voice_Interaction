@@ -28,6 +28,13 @@ interaction_node
 
 模型、预编译运行库、构建产物和设备厂商工具未纳入仓库。
 
+唤醒词默认使用轻量 Sherpa-ONNX KWS；如果 KWS 模型没有准备好，系统会自动回退到完整 ASR 唤醒，不会阻止节点启动。
+
+模块文档：
+
+- [`voice_interaction/README.md`](voice_interaction/README.md)：语音交互架构、会话行为、参数和排障
+- [`respeaker_driver/README.md`](respeaker_driver/README.md)：声卡、USB VAD/DoA、软件 VAD 和硬件排障
+
 ## 环境要求
 
 - Ubuntu 24.04、ROS 2 Jazzy、C++17、colcon
@@ -57,6 +64,19 @@ models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/
   joiner-epoch-99-avg-1.onnx
   tokens.txt
 ```
+
+唤醒词 KWS 还需要单独下载对应的 KWS 模型，默认目录为：
+
+```text
+models/sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01-mobile/
+  encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx
+  decoder-epoch-12-avg-2-chunk-16-left-64.onnx
+  joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx
+  tokens.txt
+```
+
+如果模型文件名不同，可以在 YAML 中分别配置
+`kws_encoder`、`kws_decoder`、`kws_joiner` 和 `kws_tokens`。
 
 下载 Piper 中文模型，将文件放在工程根目录：
 
@@ -112,12 +132,35 @@ ros2 launch voice_interaction voice_assistant.launch.py
 唤醒词由 `wake_word` 配置，`wake_word_aliases` 可填写 ASR 常见的同音或繁体输出。
 当前示例使用“小萝卜头”，但仍要求识别到完整四字短语，不会因为只识别到“小萝卜”就提前触发。
 唤醒词命中后不会立即播放提示音，而是继续录完整句，因此支持“小萝卜头，打开客厅灯”这类唤醒词和命令同句的说法。
+如果本句只有唤醒词，系统会播放“你好，有什么可以帮你吗？”。
 唤醒后进入连续对话模式，20 秒无有效识别会重新进入待唤醒状态。
+
+`wake_detector` 有三种模式：
+
+- `kws`: 使用轻量 KWS，推荐部署模式
+- `asr`: 使用完整 ASR 进行唤醒词检测，兼容旧行为
+- `off`: 关闭唤醒词，直接使用 VAD 触发
+
+KWS 关键词文件位于 `voice_interaction/config/wake_words.txt`。每行格式是
+“按模型 token 拆开的关键词 + `@` 后的显示文本”，例如：
+
+```text
+x iǎo l uó b o t óu @小萝卜头
+```
+
+默认 Wenetspeech KWS 模型使用拼音建模，关键词必须按声母和韵母拆分；不要写成
+`小 萝 卜 头` 这种汉字逐字格式。
+如果 `kws_keywords_file` 不存在，程序会尝试根据 `wake_word_aliases` 自动生成中文逐字关键词，
+但这只适合汉字 token 模型；默认拼音模型应保留并维护 `wake_words.txt`。
 
 会话边界和插话参数位于统一 YAML：
 
 - `wait_user_timeout_sec`: 唤醒后等待用户开口的最长时间
 - `wake_preroll_ms`: 唤醒触发时保留唤醒词及其后紧邻命令的预录时长
+- `kws_model_dir`: 轻量 KWS 模型目录
+- `kws_keywords_file`: KWS 关键词文件
+- `kws_keywords_score`: KWS 关键词加分
+- `kws_keywords_threshold`: KWS 触发阈值，增大后更保守
 - `max_utterance_sec`: 单句最长录音时间
 - `tts_cooldown_ms`: TTS 播放结束后的 VAD/唤醒冷却时间
 - `enable_barge_in`: 是否允许用户在机器人播报或思考时插话

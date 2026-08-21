@@ -28,6 +28,7 @@ add_executable(interaction_node
   src/http_client.cpp
   src/llm_client.cpp
   src/asr_sherpa.cpp
+  src/keyword_spotter.cpp
   src/tts_edge.cpp
   src/tts_piper.cpp
   src/speech_recorder.cpp

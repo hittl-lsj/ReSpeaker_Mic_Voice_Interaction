@@ -16,9 +16,23 @@ voice_interaction_node:
     max_utterance_sec: 15.0
 
     use_wake_word: true
+    # kws: lightweight keyword spotter; asr: legacy full-ASR detector; off: VAD only
+    wake_detector: "kws"
     wake_word: "小萝卜头"
     # 允许 ASR 的常见同音/繁体输出；仍要求完整四字短语，不匹配半个词。
     wake_word_aliases: ["小萝卜头", "小罗卜头", "小萝卜頭", "小罗布头"]
+
+    kws_model_dir: "$(env HOME)/ReSpearMicArray/models/sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01-mobile"
+    kws_encoder: ""
+    kws_decoder: ""
+    kws_joiner: ""
+    kws_tokens: ""
+    kws_keywords_file: "$(env HOME)/ReSpearMicArray/voice_interaction/config/wake_words.txt"
+    kws_num_threads: 1
+    kws_max_active_paths: 4
+    kws_num_trailing_blanks: 1
+    kws_keywords_score: 3.0
+    kws_keywords_threshold: 0.1
 
     conversation_timeout_sec: 20.0
 
@@ -30,7 +44,7 @@ voice_interaction_node:
 
     tts_cooldown_ms: 500
 
-    system_prompt: "你好你是一个语音助手小萝卜头。和你对话的是一个小朋友。"
+    system_prompt: "你好你是一个语音助手你叫“小萝卜头”。和你对话的是一个小朋友。"
     max_history: 6
     http_proxy: ""
 

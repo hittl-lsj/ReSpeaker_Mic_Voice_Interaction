@@ -3,6 +3,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "asr_sherpa.hpp"
+#include "keyword_spotter.hpp"
 #include "voice_types.hpp"
 
 #include <atomic>
@@ -19,8 +20,20 @@ public:
     struct Config {
         std::string asr_model_dir;
         bool use_wake_word = true;
+        std::string wake_detector = "kws";
         std::string wake_word;
         std::vector<std::string> wake_word_aliases;
+        std::string kws_model_dir;
+        std::string kws_encoder;
+        std::string kws_decoder;
+        std::string kws_joiner;
+        std::string kws_tokens;
+        std::string kws_keywords_file;
+        int kws_num_threads = 1;
+        int kws_max_active_paths = 4;
+        int kws_num_trailing_blanks = 1;
+        float kws_keywords_score = 3.0f;
+        float kws_keywords_threshold = 0.1f;
         int preroll_ms = 500;
         int wake_preroll_ms = 2000;
         int silence_threshold = 5;
@@ -43,7 +56,9 @@ public:
     SpeechRecorder(const rclcpp::Logger& logger, const Config& config);
 
     bool is_ready() const;
-    bool wake_word_enabled() const { return use_wake_word_; }
+    bool wake_word_enabled() const {
+        return use_wake_word_ && (kws_ || wake_asr_);
+    }
     bool vad_active() const { return last_vad_.load(); }
 
     void on_audio(const std::vector<int16_t>& samples, bool feed_wake_word);
@@ -67,6 +82,8 @@ private:
 
     std::unique_ptr<ASRSherpa> asr_;
     std::unique_ptr<ASRSherpa> wake_asr_;
+    std::unique_ptr<KeywordSpotter> kws_;
+    std::string wake_detector_;
     bool use_wake_word_ = false;
     std::string wake_word_;
     std::vector<std::string> wake_word_aliases_;
