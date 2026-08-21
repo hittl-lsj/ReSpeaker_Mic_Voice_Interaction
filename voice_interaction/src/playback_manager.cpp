@@ -12,6 +12,14 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+namespace {
+
+bool use_audio_device(const std::string& device) {
+    return !device.empty() && device != "default";
+}
+
+}  // namespace
+
 PlaybackManager::PlaybackManager(const rclcpp::Logger& logger,
                                  const Config& config)
     : logger_(logger), config_(config) {
@@ -113,7 +121,7 @@ bool PlaybackManager::play_file(
     pid_t pid = fork();
     if (pid < 0) return false;
     if (pid == 0) {
-        if (!config_.tts_device.empty())
+        if (use_audio_device(config_.tts_device))
             setenv("AUDIODEV", config_.tts_device.c_str(), 1);
         execlp("ffplay", "ffplay", "-nodisp", "-autoexit",
                "-loglevel", "quiet", "-af", "channelmap=0-0|0-1",

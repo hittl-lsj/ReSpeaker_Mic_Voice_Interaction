@@ -31,6 +31,17 @@ ros2 launch voice_interaction voice_assistant.launch.py \
   config_file:=/path/to/voice_assistant.yaml
 ```
 
+默认配置里使用了 `$(env HOME)` 路径替换。该替换由 launch 文件处理；
+直接 `ros2 run ... --params-file` 不会展开。
+
+启动前可先在仓库根目录运行环境体检：
+
+```bash
+./scripts/check_voice_env.sh
+```
+
+脚本只做只读检查，不启动 ROS 节点，也不会占用麦克风。
+
 ## 内部架构
 
 ```text
@@ -157,7 +168,7 @@ x iǎo l uó b o t óu @小萝卜头
 | `enable_barge_in` | 是否允许插话 |
 | `barge_in_hold_ms` | 确认插话所需的 VAD 持续时间 |
 | `barge_in_guard_ms` | 每段播报开始后的插话保护时间 |
-| `tts_device` | `ffplay` 音频输出设备 |
+| `tts_device` | `ffplay` 音频输出设备；空或 `default` 使用系统默认输出 |
 | `piper_model` | Piper 中文模型路径 |
 
 ## Provider 顺序
@@ -213,13 +224,14 @@ ros2 param get /voice_interaction_node wake_preroll_ms
 
 如果完全没有识别结果，按以下顺序排查：
 
-1. 确认 `respeaker_node` 正常运行。
-2. 确认 `/audio_raw` 有持续消息。
-3. 确认 `/vad` 在说话时变为 `true`。
-4. 确认 Sherpa 模型目录和文件名正确。
-5. 确认 KWS 模型目录和关键词文件正确；缺失时查看日志中的 ASR fallback。
-6. 确认 Ollama 或网关可以访问。
-7. 确认 `ffplay`、Piper 模型和 `tts_device` 可用。
+1. 先运行 `./scripts/check_voice_env.sh`。
+2. 确认 `respeaker_node` 正常运行。
+3. 确认 `/audio_raw` 有持续消息。
+4. 确认 `/vad` 在说话时变为 `true`。
+5. 确认 Sherpa 模型目录和文件名正确。
+6. 确认 KWS 模型目录和关键词文件正确；缺失时查看日志中的 ASR fallback。
+7. 确认 Ollama 或网关可以访问。
+8. 确认 `ffplay`、Piper 模型和 `tts_device` 可用。
 
 ## 设计约束
 

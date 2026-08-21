@@ -94,9 +94,28 @@ zh_CN-huayan-medium.onnx.json
 
 ```bash
 source /opt/ros/jazzy/setup.bash
-export SHERPA_ONNX_ROOT=/path/to/sherpa-onnx-shared
+# Replace this with the real sherpa-onnx shared-library directory.
+# This machine uses:
+export SHERPA_ONNX_ROOT=/home/lsj/sherpa-onnx-v1.13.6-linux-x64-shared
 colcon build --symlink-install
 source install/setup.bash
+```
+
+## 启动前体检
+
+启动前建议先跑一次环境体检脚本：
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export SHERPA_ONNX_ROOT=/home/lsj/sherpa-onnx-v1.13.6-linux-x64-shared
+./scripts/check_voice_env.sh
+```
+
+脚本会检查 ROS 命令、Sherpa-ONNX 运行库、ASR/KWS/Piper 模型、KWS 关键词、
+`edge-tts`、`ffplay`、Ollama 以及当前 ALSA 录放音设备。也可以传入独立配置：
+
+```bash
+./scripts/check_voice_env.sh /path/to/voice_assistant.yaml
 ```
 
 ## 启动
@@ -115,9 +134,12 @@ source install/setup.bash
 ros2 launch voice_interaction voice_assistant.launch.py
 ```
 
+默认 YAML 使用了 `$(env HOME)` 路径替换；请通过上述 launch 文件启动。
+直接 `ros2 run ... --params-file` 不会展开这些替换。
+
 所有默认部署参数统一保存在
 `voice_interaction/config/voice_assistant.yaml`，包括 VAD、模型路径、唤醒词、
-Ollama 地址和 TTS 声卡。其他机器可传入独立配置文件：
+Ollama 地址、麦克风采集设备和 TTS 输出设备。其他机器可传入独立配置文件：
 
 ```bash
 ros2 launch voice_interaction voice_assistant.launch.py \
@@ -176,6 +198,8 @@ Barge-in 依赖麦克风阵列的 AEC/VAD 效果。若扬声器回声导致机�
 使用 `aplay -l` 和 `arecord -l` 检查声卡编号，并按设备实际情况修改
 `capture_device` 和 `tts_device`。`capture_device` 控制麦克风采集设备；
 留空或设为 `auto` 时会优先按名称查找 ReSpeaker，找不到时回退到 `plughw:3,0`。
+`tts_device` 控制播放输出；留空或设为 `default` 时使用系统默认输出设备，
+只有需要固定到某个 ALSA 输出时才填写 `plughw:X,Y`。
 
 ## 注意事项
 

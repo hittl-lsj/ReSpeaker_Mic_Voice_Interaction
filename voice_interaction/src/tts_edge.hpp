@@ -8,7 +8,7 @@ class TTSEdge {
 public:
     /**
      * @param voice  TTS 发音人
-     * @param audio_dev 音频输出设备，如 "plughw:2,0"（ReSpeaker 耳机孔）
+     * @param audio_dev 音频输出设备；为空或 "default" 使用系统默认输出
      */
     TTSEdge(const std::string& voice = "zh-CN-XiaoxiaoNeural",
             const std::string& audio_dev = "");  // 空 = 系统默认
@@ -24,7 +24,11 @@ public:
      */
     bool speak_async(const std::string& text);
 
-    // 仅合成到指定 mp3（不播放），用于流水线（合成与播放并行）
+    /**
+     * @brief 仅合成到指定 mp3，不播放
+     * @param text 待合成文本
+     * @param mp3_path 输出 mp3 路径
+     */
     bool synthesize(const std::string& text, const std::string& mp3_path);
 
     /**
@@ -39,6 +43,7 @@ public:
     /** 是否正在播放 */
     bool is_playing();
 
+    /** 修改后续 edge-tts 使用的发音人。 */
     void set_voice(const std::string& voice) { voice_ = voice; }
 
 private:

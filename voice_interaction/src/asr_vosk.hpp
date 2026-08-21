@@ -17,6 +17,10 @@ extern "C" {
  */
 class ASRVosk {
 public:
+    /**
+     * @param model_path Vosk 模型目录
+     * @param sample_rate 输入音频采样率，通常为 16000 Hz
+     */
     ASRVosk(const std::string& model_path, float sample_rate = 16000);
     ~ASRVosk();
 

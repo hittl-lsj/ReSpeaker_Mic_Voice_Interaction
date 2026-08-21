@@ -5,6 +5,14 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
+namespace {
+
+bool use_audio_device(const std::string& device) {
+    return !device.empty() && device != "default";
+}
+
+}  // namespace
+
 TTSPiper::TTSPiper(const std::string& model_path, const std::string& audio_dev)
     : model_path_(model_path), audio_dev_(audio_dev) {
     tmp_txt_ = "/tmp/va_piper.txt";
@@ -50,7 +58,8 @@ bool TTSPiper::speak(const std::string& text) {
     pid_t pid = fork();
     if (pid < 0) return false;
     if (pid == 0) {
-        if (!audio_dev_.empty()) setenv("AUDIODEV", audio_dev_.c_str(), 1);
+        if (use_audio_device(audio_dev_))
+            setenv("AUDIODEV", audio_dev_.c_str(), 1);
         execlp("ffplay", "ffplay", "-nodisp", "-autoexit",
                "-loglevel", "quiet", "-af", "channelmap=0-0|0-1",
                tmp_wav_.c_str(), nullptr);
@@ -81,7 +90,7 @@ bool TTSPiper::speak_async(const std::string& text) {
     pid_t pid = fork();
     if (pid < 0) return false;
     if (pid == 0) {
-        if (!audio_dev_.empty())
+        if (use_audio_device(audio_dev_))
             setenv("AUDIODEV", audio_dev_.c_str(), 1);
         // channelmap=0-0|0-1：确保两个声道都从输入声道0复制（硬件只有左声道）
         execlp("ffplay", "ffplay", "-nodisp", "-autoexit",

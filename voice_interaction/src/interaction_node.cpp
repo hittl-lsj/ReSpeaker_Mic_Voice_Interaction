@@ -122,11 +122,18 @@ public:
         }
 
         config.playback.tts_device =
-            declare_parameter("tts_device", "plughw:3,0");
+            declare_parameter("tts_device", "");
         config.playback.tts_voice =
             declare_parameter("tts_voice", "zh-CN-XiaoxiaoNeural");
         config.playback.piper_model = declare_parameter(
             "piper_model", home + "/ReSpearMicArray/zh_CN-huayan-medium.onnx");
+        if (config.playback.tts_device.empty() ||
+            config.playback.tts_device == "default") {
+            RCLCPP_INFO(get_logger(), "TTS 输出设备: system default");
+        } else {
+            RCLCPP_INFO(get_logger(), "TTS 输出设备: %s",
+                        config.playback.tts_device.c_str());
+        }
 
         session_ = std::make_unique<SessionStateMachine>(
             get_logger(), config, std::move(llm));

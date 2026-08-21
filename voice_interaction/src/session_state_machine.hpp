@@ -19,28 +19,42 @@
 #include <vector>
 
 struct SessionStateMachineConfig {
-    SpeechRecorder::Config recorder;
-    PlaybackManager::Config playback;
-    std::string system_prompt;
-    int max_history = 6;
-    double conversation_timeout_sec = 20.0;
-    int tts_cooldown_ms = 500;
-    bool enable_barge_in = true;
-    int barge_in_hold_ms = 300;
-    int barge_in_guard_ms = 500;
+    SpeechRecorder::Config recorder;  // 录音、VAD、唤醒和 ASR 配置
+    PlaybackManager::Config playback;  // TTS 与音频输出配置
+    std::string system_prompt;  // 发给 LLM 的系统提示词
+    int max_history = 6;  // 保留的 user/assistant 消息轮数
+    double conversation_timeout_sec = 20.0;  // 连续对话空闲超时
+    int tts_cooldown_ms = 500;  // 播放结束后的 VAD 冷却时间
+    bool enable_barge_in = true;  // 是否允许用户打断机器人
+    int barge_in_hold_ms = 300;  // 连续语音多久后确认插话
+    int barge_in_guard_ms = 500;  // TTS 开始后暂不检测插话的保护时间
 };
 
 class SessionStateMachine {
 public:
+    /**
+     * @param logger ROS 日志对象
+     * @param config 会话及其子模块配置
+     * @param llm 已配置 provider 的 LLM 客户端
+     */
     SessionStateMachine(const rclcpp::Logger& logger,
                         const SessionStateMachineConfig& config,
                         std::unique_ptr<LLMClient> llm);
     ~SessionStateMachine();
 
+    /** ASR、LLM 和播放组件是否都已满足运行条件。 */
     bool is_ready() const;
+
+    /** 接收 ROS 音频 topic 的 PCM 数据。 */
     void on_audio(const std::vector<int16_t>& samples);
+
+    /** 接收 ROS VAD topic 的状态。 */
     void on_vad(bool active);
+
+    /** 由 ROS 定时器周期性调用，推进状态机。 */
     void on_tick();
+
+    /** 取消当前 generation、停止线程和播放并释放会话资源。 */
     void shutdown();
 
 private:

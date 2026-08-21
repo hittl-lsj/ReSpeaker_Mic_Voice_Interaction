@@ -4,19 +4,21 @@ respeaker_node:
     capture_device: ""
     # true: XVF-3000 hardware VAD; false: adaptive software VAD
     use_hardware_vad: true
-    snr_threshold: 3.0
-    hold_off_ms: 200
+    snr_threshold: 3.0  # 软件 VAD 的信噪比触发阈值
+    hold_off_ms: 200  # 软件 VAD 判定静音前保持的毫秒数
 
 voice_interaction_node:
   ros__parameters:
     # $(env HOME) is expanded by ParameterFile in the launch file.
+    # ---------- ASR 与录音 ----------
     asr_model_dir: "$(env HOME)/ReSpearMicArray/models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20"
-    silence_sec: 1.0
-    preroll_ms: 1000
-    wake_preroll_ms: 2000
-    wait_user_timeout_sec: 20.0
-    max_utterance_sec: 15.0
+    silence_sec: 1.0  # 连续静音多久后结束当前录音
+    preroll_ms: 1000  # VAD 触发时补入触发前的音频
+    wake_preroll_ms: 2000  # KWS 命中时补入更长的前置音频
+    wait_user_timeout_sec: 20.0  # 播放唤醒确认后等待用户说话的超时
+    max_utterance_sec: 15.0  # 单次录音的最长时长
 
+    # ---------- 唤醒词与 KWS ----------
     use_wake_word: true
     # kws: lightweight keyword spotter; asr: legacy full-ASR detector; off: VAD only
     wake_detector: "kws"
@@ -36,19 +38,17 @@ voice_interaction_node:
     kws_keywords_score: 3.0
     kws_keywords_threshold: 0.1
 
-    conversation_timeout_sec: 20.0
+    # ---------- 连续对话与插话 ----------
+    conversation_timeout_sec: 20.0  # 连续对话无新指令后的退出时间
+    enable_barge_in: true  # 播放期间是否允许用户打断
+    barge_in_hold_ms: 300  # 连续检测到语音多久后确认插话
+    barge_in_guard_ms: 500  # 开始播放后暂时忽略 VAD 的保护时间
+    tts_cooldown_ms: 500  # 播放结束后忽略残留回声的时间
 
-    enable_barge_in: true
-
-    barge_in_hold_ms: 300
-
-    barge_in_guard_ms: 500
-
-    tts_cooldown_ms: 500
-
-    system_prompt: "你好你是一个语音助手你叫“小萝卜头”。和你对话的是一个小朋友。"
-    max_history: 6
-    http_proxy: ""
+    # ---------- LLM ----------
+    system_prompt: "你好你是一个语音助手你叫“小萝卜头”。请用简短的语言回答问题，有趣一点。"  # 系统提示词
+    max_history: 6  # 保留的 user/assistant 消息数量
+    http_proxy: ""  # 可选 HTTP 代理
 
     # Optional OpenAI-compatible gateway. The API key is read from
     # VOICE_GATEWAY_API_KEY and is never stored in this file.
@@ -59,6 +59,8 @@ voice_interaction_node:
     ollama_url: "http://localhost:11434/v1"
     ollama_model: "qwen2.5:1.5b"
 
-    tts_voice: "zh-CN-XiaoxiaoNeural"
-    tts_device: "plughw:3,0"
-    piper_model: "$(env HOME)/ReSpearMicArray/zh_CN-huayan-medium.onnx"
+    # ---------- TTS ----------
+    tts_voice: "zh-CN-XiaoxiaoNeural"  # edge-tts 发音人
+    # Audio output device for ffplay. Empty or "default" uses the system default.
+    tts_device: ""
+    piper_model: "$(env HOME)/ReSpearMicArray/zh_CN-huayan-medium.onnx"  # Piper 离线模型
