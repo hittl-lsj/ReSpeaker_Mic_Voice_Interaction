@@ -41,8 +41,17 @@ ros2 run respeaker_driver respeaker_node
 
 ## 设备发现
 
-驱动会遍历 ALSA 声卡，优先查找声卡名称中包含 `ReSpeaker` 的设备。
-如果没有找到，会回退到：
+采集设备由 `capture_device` 参数指定：
+
+```yaml
+respeaker_node:
+  ros__parameters:
+    capture_device: "plughw:2,0"
+```
+
+`capture_device` 可以填写任意 ALSA PCM 设备名，例如 `plughw:2,0`、`hw:1,0`
+或 `default`。留空或设为 `auto` 时，驱动会遍历 ALSA 声卡，优先查找声卡名称中
+包含 `ReSpeaker` 的设备；如果没有找到，会回退到旧默认值：
 
 ```text
 plughw:3,0
@@ -55,7 +64,14 @@ aplay -l
 arecord -l
 ```
 
-如果设备编号不是 `3,0`，应优先确保系统能正确识别 ReSpeaker。临时设备编号变化时，可以修改 `audio_capture.cpp` 中的 fallback，或为系统配置稳定的 ALSA 设备名。
+如果使用普通 USB 麦克风，通常还应关闭硬件 VAD，让软件 VAD 接管：
+
+```yaml
+respeaker_node:
+  ros__parameters:
+    capture_device: "plughw:2,0"
+    use_hardware_vad: false
+```
 
 ## VAD 模式
 
@@ -131,7 +147,7 @@ fuser -v /dev/snd/*
 然后确认采集设备支持 16 kHz、mono：
 
 ```bash
-arecord -D plughw:3,0 -f S16_LE -r 16000 -c 1 -d 5 /tmp/respeaker_test.wav
+arecord -D plughw:2,0 -f S16_LE -r 16000 -c 1 -d 5 /tmp/respeaker_test.wav
 ```
 
 ### `/audio_raw` 没有消息
@@ -177,4 +193,3 @@ source /opt/ros/jazzy/setup.bash
 colcon build --packages-select respeaker_driver
 source install/setup.bash
 ```
-

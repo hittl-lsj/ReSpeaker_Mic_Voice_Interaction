@@ -1,5 +1,7 @@
 respeaker_node:
   ros__parameters:
+    # ALSA capture device, e.g. "plughw:2,0". Empty or "auto" keeps ReSpeaker auto-discovery.
+    capture_device: ""
     # true: XVF-3000 hardware VAD; false: adaptive software VAD
     use_hardware_vad: true
     snr_threshold: 3.0

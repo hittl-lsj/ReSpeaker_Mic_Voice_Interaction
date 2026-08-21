@@ -52,6 +52,9 @@ sudo apt install libasound2-dev libusb-1.0-0-dev libcurl4-openssl-dev \
 python3 -m pip install --user edge-tts piper-tts
 ollama pull qwen2.5:1.5b
 ```
+# 设置开机自启
+sudo systemctl enable ollama
+sudo systemctl start ollama
 
 ## 模型准备
 
@@ -170,7 +173,9 @@ x iǎo l uó b o t óu @小萝卜头
 Barge-in 依赖麦克风阵列的 AEC/VAD 效果。若扬声器回声导致机器人打断自己，优先增大
 `barge_in_guard_ms` 和 `barge_in_hold_ms`，必要时暂时关闭 `enable_barge_in`。
 
-使用 `aplay -l` 和 `arecord -l` 检查声卡编号，并按设备实际情况修改 `tts_device`。音频采集会优先按名称查找 ReSpeaker，找不到时回退到 `plughw:3,0`。
+使用 `aplay -l` 和 `arecord -l` 检查声卡编号，并按设备实际情况修改
+`capture_device` 和 `tts_device`。`capture_device` 控制麦克风采集设备；
+留空或设为 `auto` 时会优先按名称查找 ReSpeaker，找不到时回退到 `plughw:3,0`。
 
 ## 注意事项
 

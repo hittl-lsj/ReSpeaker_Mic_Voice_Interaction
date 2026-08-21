@@ -19,41 +19,49 @@ AudioCapture::~AudioCapture() {
     stop();
 }
 
+void AudioCapture::set_device_name(const std::string& device_name) {
+    if (running_) return;
+    device_name_ = device_name;
+}
+
 bool AudioCapture::start() {
     if (running_) return true;
 
-    std::string dev_str = "plughw:3,0";  // ReSpeaker card 3
+    std::string dev_str = device_name_;
+    if (dev_str.empty() || dev_str == "auto") {
+        dev_str = "plughw:3,0";  // legacy fallback
 
-    // 先尝试用指定名找到设备对应的 card 号
-    int card = -1;
-    snd_ctl_t* ctl;
-    int err = snd_card_next(&card);
-    while (card >= 0) {
-        char name[32];
-        snprintf(name, sizeof(name), "hw:%d", card);
-        if (snd_ctl_open(&ctl, name, 0) >= 0) {
-            snd_ctl_card_info_t* info;
-            snd_ctl_card_info_alloca(&info);
-            if (snd_ctl_card_info(ctl, info) >= 0) {
-                std::string card_name(snd_ctl_card_info_get_name(info));
-                if (card_name.find("ReSpeaker") != std::string::npos) {
-                    char hw[64];
-                    snprintf(hw, sizeof(hw), "plughw:%d,0", card);
-                    dev_str = hw;
-                    snd_ctl_close(ctl);
-                    break;
-                }
-            }
-            snd_ctl_close(ctl);
-        }
+        // 先尝试按声卡名自动找到 ReSpeaker。
+        int card = -1;
+        snd_ctl_t* ctl;
         snd_card_next(&card);
+        while (card >= 0) {
+            char name[32];
+            snprintf(name, sizeof(name), "hw:%d", card);
+            if (snd_ctl_open(&ctl, name, 0) >= 0) {
+                snd_ctl_card_info_t* info;
+                snd_ctl_card_info_alloca(&info);
+                if (snd_ctl_card_info(ctl, info) >= 0) {
+                    std::string card_name(snd_ctl_card_info_get_name(info));
+                    if (card_name.find("ReSpeaker") != std::string::npos) {
+                        char hw[64];
+                        snprintf(hw, sizeof(hw), "plughw:%d,0", card);
+                        dev_str = hw;
+                        snd_ctl_close(ctl);
+                        break;
+                    }
+                }
+                snd_ctl_close(ctl);
+            }
+            snd_card_next(&card);
+        }
     }
 
     std::cout << "[AudioCapture] 打开 ALSA 设备: " << dev_str << std::endl;
 
     // 打开 PCM 采集设备（非阻塞模式）
-    err = snd_pcm_open((snd_pcm_t**)&stream_, dev_str.c_str(),
-                       SND_PCM_STREAM_CAPTURE, 0);
+    int err = snd_pcm_open((snd_pcm_t**)&stream_, dev_str.c_str(),
+                           SND_PCM_STREAM_CAPTURE, 0);
     if (err < 0) {
         std::cerr << "[AudioCapture] snd_pcm_open 失败: "
                   << snd_strerror(err) << std::endl;

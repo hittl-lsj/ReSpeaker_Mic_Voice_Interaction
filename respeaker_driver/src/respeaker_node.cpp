@@ -12,12 +12,13 @@
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
+#include <string>
 
 class ReSpeakerNode : public rclcpp::Node {
 public:
     ReSpeakerNode()
         : Node("respeaker_node"),
-          audio_("ReSpeaker", 1, 16000, 512)
+          audio_("", 1, 16000, 512)
     {
         audio_pub_ = create_publisher<std_msgs::msg::Int16MultiArray>("audio_raw", 10);
         vad_pub_   = create_publisher<std_msgs::msg::Bool>("vad", 10);
@@ -25,9 +26,18 @@ public:
 
         // ----- 软件 VAD 参数（可通过 ROS2 parameter 覆盖） -----
         use_hw_vad_  = declare_parameter("use_hardware_vad", true);
+        capture_device_ = declare_parameter("capture_device", std::string(""));
         snr_threshold_ = declare_parameter("snr_threshold", 3.0);
         hold_off_ms_   = declare_parameter("hold_off_ms", 200);
         hold_off_frames_ = std::max(1, hold_off_ms_ / 20);  // timer 是 20ms 周期
+        audio_.set_device_name(capture_device_);
+        if (capture_device_.empty() || capture_device_ == "auto") {
+            RCLCPP_INFO(get_logger(),
+                        "音频采集设备: auto (自动查找 ReSpeaker)");
+        } else {
+            RCLCPP_INFO(get_logger(), "音频采集设备: %s",
+                        capture_device_.c_str());
+        }
 
         // ----- 硬件 USB：只读 VAD，不 claim 接口 -----
         if (use_hw_vad_ && usb_.open()) {
@@ -44,7 +54,7 @@ public:
             usb_running_ = false;
             if (usb_thread_.joinable()) usb_thread_.join();
             usb_.close();
-            throw std::runtime_error("无法启动 ReSpeaker ALSA 音频采集");
+            throw std::runtime_error("无法启动 ALSA 音频采集");
         }
         RCLCPP_INFO(get_logger(), "音频采集已启动 (16000 Hz)");
         audio_running_ = true;
@@ -152,6 +162,7 @@ private:
     int    hold_off_ms_   = 320;
     int    hold_off_frames_ = 16;  // hold_off_ms / 20
     bool   use_hw_vad_   = true;
+    std::string capture_device_;
 
     // ====== 定时器：决定最终 VAD ======
     void on_timer() {
